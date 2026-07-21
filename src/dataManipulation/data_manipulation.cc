@@ -15,6 +15,12 @@ bool DataManipulation::BuildEnvelope(
     std::string &json_str_out)
 {
     Json::Value root;
+    const auto format_it =
+        data_manipulation_cfg_parameters.find("telemetry_data_format");
+    const bool telemetry_object_mode =
+        format_it != data_manipulation_cfg_parameters.end() &&
+        format_it->second == "object";
+    
     set_sequence_number();
     root["event_type"] = "gRPC";
     root["serialization"] = "json_string";
@@ -23,7 +29,28 @@ bool DataManipulation::BuildEnvelope(
     root["writer_id"] = writer_id;
     root["telemetry_node"] = peer_ip;
     root["telemetry_port"] = static_cast<uint16_t>(std::stoi(peer_port));
-    root["telemetry_data"] = telemetry_body;
+
+    if (!telemetry_object_mode) {
+        root["telemetry_data"] = telemetry_body;
+    } else {
+        Json::Value telemetry_json;
+        JSONCPP_STRING errors;
+        Json::CharReaderBuilder builder_r;
+        const std::unique_ptr<Json::CharReader> reader(
+            builder_r.newCharReader());
+
+        if (reader->parse(telemetry_body.data(),
+                telemetry_body.data() + telemetry_body.size(),
+                &telemetry_json, &errors)) {
+            root["serialization"] = "json_object";
+            root["telemetry_data"] = telemetry_json;
+        } else {
+            root["telemetry_data"] = telemetry_body;
+            spdlog::get("multi-logger")->warn(
+                "[BuildEnvelope] Unable to parse telemetry payload as JSON. "
+                "Falling back to json_string mode.");
+        }
+    }
 
     if (label_map != nullptr) {
         Json::Value jlabel_map;
