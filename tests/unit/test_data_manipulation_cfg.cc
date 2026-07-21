@@ -33,8 +33,22 @@ TEST_F(DataManipulationCfgTest, DefaultsSatisfyCiscoXor) {
     auto p = Parse("");
     EXPECT_EQ(p.at("enable_cisco_gpbkv2json"),             "true");
     EXPECT_EQ(p.at("enable_cisco_message_to_json_string"), "false");
+    EXPECT_EQ(p.at("telemetry_data_format"),               "string");
     EXPECT_EQ(p.at("enable_label_encode_as_map"),          "false");
     EXPECT_EQ(p.at("enable_label_encode_as_map_ptm"),      "false");
+}
+
+TEST_F(DataManipulationCfgTest, TelemetryDataFormatObjectAccepted) {
+    auto p = Parse(R"(
+        telemetry_data_format = "object";
+    )");
+    EXPECT_EQ(p.at("telemetry_data_format"), "object");
+}
+
+TEST_F(DataManipulationCfgTest, TelemetryDataFormatInvalidRejected) {
+    EXPECT_TRUE(ParseExpectFail(R"(
+        telemetry_data_format = "array";
+    )"));
 }
 
 TEST_F(DataManipulationCfgTest, CiscoBothTrueRejected) {
