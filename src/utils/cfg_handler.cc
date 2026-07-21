@@ -315,7 +315,9 @@ bool DataManipulationCfgHandler::lookup_data_manipulation_parameters(
 
     if (!LoadOptional(dmp, params, "enable_cisco_message_to_json_string",
             "false") ||
-        !LoadOptional(dmp, params, "enable_cisco_gpbkv2json", "true")) {
+        !LoadOptional(dmp, params, "enable_cisco_gpbkv2json", "true") ||
+        !LoadOptionalEnum(dmp, params, "telemetry_data_format", "string",
+            {"string", "object"})) {
         return false;
     }
     // The two cisco JSON paths are mutually exclusive — they must differ.
