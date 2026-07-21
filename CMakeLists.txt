@@ -463,7 +463,43 @@ endforeach(sourcefile ${APP_SOURCES})
 option(BUILD_TESTING "Build the unit tests under tests/" OFF)
 if (BUILD_TESTING)
     enable_testing()
+    find_package(GTest CONFIG REQUIRED)
     add_subdirectory(tests)
+
+    add_executable(
+        test_build_envelope
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/test_build_envelope.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/dataManipulation/data_manipulation.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/cfg_handler.cc"
+        ${cisco_telemetry_pb_cc}
+        ${juniper_gnmi_pb_cc}
+        ${juniper_gnmi_ext_pb_cc}
+        ${juniper_telemetry_pb_cc}
+        ${juniper_telemetry_header_pb_cc}
+        ${juniper_telemetry_header_extension_pb_cc}
+        ${nokia_gnmi_pb_cc}
+        ${nokia_gnmi_ext_pb_cc}
+        ${huawei_telemetry_pb_cc}
+        ${openconfig_interfaces_pb_cc}
+    )
+    target_include_directories(
+        test_build_envelope PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit"
+        ${SPDLOG_INCLUDE_DIRS}
+        ${LIBCONFIG_CPP_INCLUDE_DIRS}
+    )
+    target_link_libraries(
+        test_build_envelope PRIVATE
+        GTest::gtest GTest::gtest_main
+        protobuf::libprotobuf
+        gRPC::grpc++        ${JSONCPP_LIBRARIES}
+        ${LIBCONFIG_CPP_LIBRARIES}
+        ${SPDLOG_LIBRARIES}
+    )
+    add_test(NAME test_build_envelope COMMAND test_build_envelope)
+    
 endif()
 
 # Compile C
