@@ -122,6 +122,14 @@ VALUES:    ["true" or "false"]
 DESC:      Standard JSON-string output after decoding from Cisco's GPB/GPB-KV.
 DEFAULT:   "false"
 
+KEY:       telemetry_data_format
+VALUES:    ["string" or "object"]
+DESC:      Controls how the final envelope serializes the "telemetry_data" field. "string" preserves the legacy
+           behavior where the vendor JSON payload is embedded as a JSON string. "object" attempts to parse the
+           payload back into JsonCpp during BuildEnvelope() and emits it as a native nested JSON object instead.
+           If parsing fails, the collector falls back to "json_string" mode and keeps the original payload string.
+DEFAULT:   "string"
+
 KEY:       enable_label_encode_as_map
 VALUES:    ["true" or "false"]
 DESC:      If enabled the data-stream output is enriched with an additional field "label": { "key1": "value1", "key2":"value2" }".
