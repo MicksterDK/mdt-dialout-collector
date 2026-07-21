@@ -118,4 +118,5 @@ spdlog_level = "debug";
 
 enable_cisco_gpbkv2json = "false";
 enable_cisco_message_to_json_string = "true";
+telemetry_data_format = "string";
 ```
