@@ -425,7 +425,6 @@ bool DataManipulation::JuniperUpdate(juniper_gnmi::SubscribeResponse &juniper_st
         root["notification_timestamp"] = notification_timestamp;
 
         std::string path;
-        bool has_decoded_value {false};
         for (const auto &_jup : jup.update()) {
             int path_idx = 0;
             path.clear();
@@ -438,15 +437,10 @@ bool DataManipulation::JuniperUpdate(juniper_gnmi::SubscribeResponse &juniper_st
             Json::Value value;
             if (JuniperTypedValueToJson(_jup.val(), value)) {
                 root[path] = value;
-                has_decoded_value = true;
             } else {
                 logger->warn("[JuniperUpdate] Unsupported or empty TypedValue "
                     "for path {}", path);
             }
-        }
-
-        if (!has_decoded_value) {
-            return false;
         }
     } else {
         // sync_response and other non-update messages carry no metric values.
