@@ -5,6 +5,71 @@
 
 #include "data_manipulation.h"
 
+#include <cmath>
+
+
+namespace {
+
+bool ParseJsonValue(const std::string &encoded, Json::Value &value)
+{
+    Json::CharReaderBuilder builder;
+    JSONCPP_STRING errors;
+    const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+
+    return reader->parse(encoded.data(), encoded.data() + encoded.size(),
+        &value, &errors);
+}
+
+bool JuniperTypedValueToJson(const juniper_gnmi::TypedValue &typed_value,
+    Json::Value &value)
+{
+    if (typed_value.has_string_val()) {
+        value = typed_value.string_val();
+    } else if (typed_value.has_int_val()) {
+        value = static_cast<Json::Int64>(typed_value.int_val());
+    } else if (typed_value.has_uint_val()) {
+        value = static_cast<Json::UInt64>(typed_value.uint_val());
+    } else if (typed_value.has_bool_val()) {
+        value = typed_value.bool_val();
+    } else if (typed_value.has_bytes_val()) {
+        value = typed_value.bytes_val();
+    } else if (typed_value.has_float_val()) {
+        value = typed_value.float_val();
+    } else if (typed_value.has_decimal_val()) {
+        const auto &decimal = typed_value.decimal_val();
+        value = static_cast<double>(decimal.digits()) /
+            std::pow(10.0, decimal.precision());
+    } else if (typed_value.has_leaflist_val()) {
+        Json::Value values(Json::arrayValue);
+        for (const auto &element : typed_value.leaflist_val().element()) {
+            Json::Value element_value;
+            if (!JuniperTypedValueToJson(element, element_value)) {
+                return false;
+            }
+            values.append(element_value);
+        }
+        value = values;
+    } else if (typed_value.has_json_val()) {
+        const std::string &encoded = typed_value.json_val();
+        if (!ParseJsonValue(encoded, value)) {
+            value = encoded;
+        }
+    } else if (typed_value.has_json_ietf_val()) {
+        const std::string &encoded = typed_value.json_ietf_val();
+        if (!ParseJsonValue(encoded, value)) {
+            value = encoded;
+        }
+    } else if (typed_value.has_ascii_val()) {
+        value = typed_value.ascii_val();
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+}  // namespace
+
 
 bool DataManipulation::BuildEnvelope(
     const std::string &telemetry_body,
@@ -360,7 +425,7 @@ bool DataManipulation::JuniperUpdate(juniper_gnmi::SubscribeResponse &juniper_st
         root["notification_timestamp"] = notification_timestamp;
 
         std::string path;
-        Json::Value value;
+        bool has_decoded_value {false};
         for (const auto &_jup : jup.update()) {
             int path_idx = 0;
             path.clear();
@@ -370,9 +435,22 @@ bool DataManipulation::JuniperUpdate(juniper_gnmi::SubscribeResponse &juniper_st
                 path_idx++;
             }
 
-            value = _jup.val().json_val();
-            root[path] = value;
+            Json::Value value;
+            if (JuniperTypedValueToJson(_jup.val(), value)) {
+                root[path] = value;
+                has_decoded_value = true;
+            } else {
+                logger->warn("[JuniperUpdate] Unsupported or empty TypedValue "
+                    "for path {}", path);
+            }
         }
+
+        if (!has_decoded_value) {
+            return false;
+        }
+    } else {
+        // sync_response and other non-update messages carry no metric values.
+        return false;
     }
 
     Json::StreamWriterBuilder builder_w;
@@ -517,4 +595,3 @@ bool DataManipulation::HuaweiGpbOpenconfigInterface(
 
     return true;
 }
-
