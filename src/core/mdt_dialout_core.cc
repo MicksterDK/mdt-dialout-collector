@@ -718,14 +718,14 @@ void Srv::JuniperStream::HandleMessage()
         spdlog::get("multi-logger")->
             info("[JuniperStream::Start()] {} "
             "JuniperExtension, parsing successful", peer_ip);
+        deliver_payload(ctx_, json_str_out, peer_ip, peer_port, label_map);
     } else {
         spdlog::get("multi-logger")->
-            error("[JuniperStream::Start()] {} "
-            "JuniperExtension, parsing failure", peer_ip);
+            debug("[JuniperStream::Start()] {} "
+            "Juniper message contained no publishable update", peer_ip);
     }
-
-    deliver_payload(ctx_, json_str_out, peer_ip, peer_port, label_map);
 }
+
 
 void Srv::NokiaStream::Proceed(bool ok)
 {
