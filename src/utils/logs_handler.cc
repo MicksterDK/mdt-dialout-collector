@@ -54,7 +54,9 @@ bool LogsHandler::set_boot_spdlog_sinks()
 bool LogsHandler::set_spdlog_sinks()
 {
     std::vector<spdlog::sink_ptr> spdlog_sinks;
-    std::string spdlog_level = logs_cfg_parameters.at("spdlog_level");
+    const auto operational_level = spdlog::level::from_str(
+        logs_cfg_parameters.at("spdlog_level"));
+    auto logger_level = operational_level;
 
     // RFC 5424 facility codes; spdlog wants them shifted left 3 bits.
     std::map<std::string, int> syslog_facility {
@@ -79,6 +81,7 @@ bool LogsHandler::set_spdlog_sinks()
                     syslog_facility[
                         logs_cfg_parameters.at("syslog_facility")] * 8,
                     true);
+            spdlog_syslog->set_level(operational_level);
             spdlog_sinks.push_back(spdlog_syslog);
         } catch (const spdlog::spdlog_ex &sex) {
             std::cout << "spdlog, syslog: " << sex.what() << "\n";
@@ -90,6 +93,7 @@ bool LogsHandler::set_spdlog_sinks()
         try {
             auto spdlog_console =
                 std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+            spdlog_console->set_level(operational_level);
             spdlog_sinks.push_back(spdlog_console);
         } catch (const spdlog::spdlog_ex &sex) {
             std::cout << "spdlog, console: " << sex.what() << "\n";
@@ -97,11 +101,37 @@ bool LogsHandler::set_spdlog_sinks()
         }
     }
 
+    if (logs_cfg_parameters.at("rotating_file_log") == "true") {
+        try {
+            const auto file_level = spdlog::level::from_str(
+                logs_cfg_parameters.at("rotating_file_level"));
+            const std::size_t max_size = std::stoull(
+                logs_cfg_parameters.at("rotating_file_max_size_mb")) *
+                1024ULL * 1024ULL;
+            const std::size_t max_files = std::stoull(
+                logs_cfg_parameters.at("rotating_file_max_files"));
+            auto rotating_file =
+                std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+                    logs_cfg_parameters.at("rotating_file_path"),
+                    max_size, max_files);
+            rotating_file->set_level(file_level);
+            spdlog_sinks.push_back(rotating_file);
+            if (file_level < logger_level) {
+                logger_level = file_level;
+            }
+        } catch (const spdlog::spdlog_ex &sex) {
+            std::cout << "spdlog, rotating file: " << sex.what() << "\n";
+            return false;
+        } catch (const std::exception &ex) {
+            std::cout << "rotating file configuration: " << ex.what() << "\n";
+            return false;
+        }
+    }
+
     this->multi_logger = std::make_shared<spdlog::logger>
         ("multi-logger", begin(spdlog_sinks), end(spdlog_sinks));
-    this->multi_logger->set_level(spdlog::level::from_str(spdlog_level));
+    this->multi_logger->set_level(logger_level);
     spdlog::register_logger(this->multi_logger);
 
     return true;
 }
-

@@ -253,5 +253,27 @@ DEFAULT:   "mdt-dialout-collector"
 
 KEY:       spdlog_level
 VALUES:    ["debug" or "info" or "warn" or "error" or "off"]
-DESC:      Increase/Decrease the level of logging verbosity.
+DESC:      Sets the console and syslog logging threshold.
 DEFAULT:   "info"
+
+KEY:       rotating_file_log
+VALUES:    ["true" or "false"]
+DESC:      Enables a size-bounded rotating log file. This can retain debug payloads while console/syslog use a less verbose threshold.
+DEFAULT:   "false"
+
+KEY:       rotating_file_path
+DESC:      Output path for the rotating log. Mandatory when rotating_file_log is true. The parent directory must exist and be writable.
+DEFAULT:   none
+
+KEY:       rotating_file_max_size_mb
+DESC:      Maximum size in MiB of each rotating log file. Must be a positive integer encoded as a string.
+DEFAULT:   "100"
+
+KEY:       rotating_file_max_files
+DESC:      Number of rotated files retained in addition to the active file. Must be a positive integer encoded as a string.
+DEFAULT:   "5"
+
+KEY:       rotating_file_level
+VALUES:    ["debug" or "info" or "warn" or "error" or "off"]
+DESC:      Sets the independent threshold for the rotating file sink.
+DEFAULT:   "debug"

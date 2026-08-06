@@ -7,6 +7,7 @@
 #include "utils/cfg_handler.h"
 
 #include <gtest/gtest.h>
+#include <filesystem>
 #include <spdlog/spdlog.h>
 
 
@@ -38,6 +39,7 @@ TEST_F(LogsHandlerTest, SetSpdlogSinksRegistersMultiLogger) {
     logs_cfg_parameters["syslog_facility"] = "NONE";
     logs_cfg_parameters["console_log"]     = "true";
     logs_cfg_parameters["spdlog_level"]    = "info";
+    logs_cfg_parameters["rotating_file_log"] = "false";
     EXPECT_TRUE(h.set_spdlog_sinks());
     EXPECT_NE(spdlog::get("multi-logger"), nullptr);
 }
@@ -51,6 +53,30 @@ TEST_F(LogsHandlerTest, DestructorIsNullSafeWithoutMultiLogger) {
         EXPECT_EQ(spdlog::get("multi-logger"), nullptr);
     }
     SUCCEED();
+}
+
+TEST_F(LogsHandlerTest, RotatingFileCanCaptureDebugIndependently) {
+    const std::string path = "/tmp/mdt-dialout-collector-log-test.log";
+    std::filesystem::remove(path);
+    LogsHandler h;
+    logs_cfg_parameters["syslog"] = "false";
+    logs_cfg_parameters["syslog_facility"] = "NONE";
+    logs_cfg_parameters["console_log"] = "false";
+    logs_cfg_parameters["spdlog_level"] = "warn";
+    logs_cfg_parameters["rotating_file_log"] = "true";
+    logs_cfg_parameters["rotating_file_path"] = path;
+    logs_cfg_parameters["rotating_file_max_size_mb"] = "1";
+    logs_cfg_parameters["rotating_file_max_files"] = "2";
+    logs_cfg_parameters["rotating_file_level"] = "debug";
+
+    ASSERT_TRUE(h.set_spdlog_sinks());
+    auto logger = spdlog::get("multi-logger");
+    ASSERT_NE(logger, nullptr);
+    EXPECT_TRUE(logger->should_log(spdlog::level::debug));
+    logger->debug("rotating debug test");
+    logger->flush();
+    EXPECT_TRUE(std::filesystem::exists(path));
+    std::filesystem::remove(path);
 }
 
 }  // namespace

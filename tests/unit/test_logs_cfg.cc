@@ -34,6 +34,11 @@ TEST_F(LogsCfgTest, EmptyConfigUsesAllDefaults) {
     EXPECT_EQ(p.at("syslog_ident"),    "NONE");
     EXPECT_EQ(p.at("console_log"),     "true");
     EXPECT_EQ(p.at("spdlog_level"),    "info");
+    EXPECT_EQ(p.at("rotating_file_log"), "false");
+    EXPECT_EQ(p.at("rotating_file_path"), "NONE");
+    EXPECT_EQ(p.at("rotating_file_max_size_mb"), "100");
+    EXPECT_EQ(p.at("rotating_file_max_files"), "5");
+    EXPECT_EQ(p.at("rotating_file_level"), "off");
 }
 
 TEST_F(LogsCfgTest, SyslogTrueGetsBundleDefaults) {
@@ -70,6 +75,38 @@ TEST_F(LogsCfgTest, ValidSpdlogLevelsAccepted) {
         auto p = Parse(cfg.c_str());
         EXPECT_EQ(p.at("spdlog_level"), lvl);
     }
+}
+
+TEST_F(LogsCfgTest, RotatingFileRequiresPath) {
+    EXPECT_TRUE(ParseExpectFail(R"(rotating_file_log = "true";)"));
+}
+
+TEST_F(LogsCfgTest, RotatingFileSettingsAccepted) {
+    auto p = Parse(R"(
+        rotating_file_log = "true";
+        rotating_file_path = "/tmp/mdt-debug.log";
+        rotating_file_max_size_mb = "25";
+        rotating_file_max_files = "3";
+        rotating_file_level = "debug";
+    )");
+    EXPECT_EQ(p.at("rotating_file_log"), "true");
+    EXPECT_EQ(p.at("rotating_file_path"), "/tmp/mdt-debug.log");
+    EXPECT_EQ(p.at("rotating_file_max_size_mb"), "25");
+    EXPECT_EQ(p.at("rotating_file_max_files"), "3");
+    EXPECT_EQ(p.at("rotating_file_level"), "debug");
+}
+
+TEST_F(LogsCfgTest, RotatingFileRejectsInvalidLimits) {
+    EXPECT_TRUE(ParseExpectFail(R"(
+        rotating_file_log = "true";
+        rotating_file_path = "/tmp/mdt-debug.log";
+        rotating_file_max_size_mb = "0";
+    )"));
+    EXPECT_TRUE(ParseExpectFail(R"(
+        rotating_file_log = "true";
+        rotating_file_path = "/tmp/mdt-debug.log";
+        rotating_file_max_files = "many";
+    )"));
 }
 
 }  // namespace

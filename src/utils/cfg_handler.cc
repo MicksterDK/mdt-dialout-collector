@@ -5,6 +5,7 @@
 
 #include "cfg_handler.h"
 
+#include <charconv>
 #include <initializer_list>
 
 
@@ -86,6 +87,30 @@ bool LoadOptionalEnum(libconfig::Config &cfg, ParamsMap &params,
     } else {
         params.emplace(key, default_value);
     }
+    return true;
+}
+
+// Optional positive integer stored as a string, matching the existing config
+// representation used throughout the collector.
+bool LoadOptionalPositiveInteger(libconfig::Config &cfg, ParamsMap &params,
+    const char *key, const char *default_value,
+    const std::string &logger = "multi-logger")
+{
+    std::string value;
+    if (!ReadStringSetting(cfg, key, logger, &value)) {
+        return false;
+    }
+    const std::string chosen = cfg.exists(key) ? value : default_value;
+    unsigned long long parsed = 0;
+    const auto result = std::from_chars(
+        chosen.data(), chosen.data() + chosen.size(), parsed);
+    if (chosen.empty() || result.ec != std::errc() ||
+        result.ptr != chosen.data() + chosen.size() || parsed == 0) {
+        spdlog::get(logger)->error(
+            "[{}] configuration issue: [ {} ] is invalid", key, chosen);
+        return false;
+    }
+    params.emplace(key, chosen);
     return true;
 }
 
@@ -188,6 +213,26 @@ bool LogsCfgHandler::lookup_logs_parameters(const std::string &cfg_path,
     if (!LoadOptionalEnum(logs_params, params, "spdlog_level", "info",
             {"debug", "info", "warn", "error", "off"}, log)) {
         return false;
+    }
+    if (!LoadOptionalEnum(logs_params, params, "rotating_file_log", "false",
+            {"true", "false"}, log)) {
+        return false;
+    }
+    if (params.at("rotating_file_log") == "true") {
+        if (!LoadMandatory(logs_params, params, "rotating_file_path", log) ||
+            !LoadOptionalPositiveInteger(logs_params, params,
+                "rotating_file_max_size_mb", "100", log) ||
+            !LoadOptionalPositiveInteger(logs_params, params,
+                "rotating_file_max_files", "5", log) ||
+            !LoadOptionalEnum(logs_params, params, "rotating_file_level",
+                "debug", {"debug", "info", "warn", "error", "off"}, log)) {
+            return false;
+        }
+    } else {
+        params.emplace("rotating_file_path", "NONE");
+        params.emplace("rotating_file_max_size_mb", "100");
+        params.emplace("rotating_file_max_files", "5");
+        params.emplace("rotating_file_level", "off");
     }
     return true;
 }
@@ -448,4 +493,3 @@ bool ZmqCfgHandler::lookup_zmq_parameters(const std::string &zmq_uri,
     spdlog::get("multi-logger")->info("[zmq_uri] set to {}", uri);
     return true;
 }
-

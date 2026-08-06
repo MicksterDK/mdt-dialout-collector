@@ -11,6 +11,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
 #include <spdlog/common.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/syslog_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
@@ -36,4 +37,3 @@ private:
 };
 
 #endif
-
